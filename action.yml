@@ -1,0 +1,29 @@
+name: "Set up ssh keys, known hosts, and update submodules for current repository"
+description: "Setup the .ssh/known_hosts file to include known hosts and keys. Add GIT_SSH_KEY and update submodules"
+inputs:
+  ssh-known-hosts: # id of input
+    description: "Contents of a known_hosts file to add to ~/.ssh/known_hosts"
+    required: true
+  ssh-key:
+    description: "Contents of a private ssh key to use for git operations"
+    required: true
+  paths:
+    description: "Paths to update submodules for (using the passed keys); defaults to all submodules"
+    required: false
+    default: ""
+runs:
+  using: "composite"
+  steps:
+    - name: Create .ssh/known_hosts
+      env:
+        INPUT_SSH_HOST_KEYS: ${{ inputs.ssh-known-hosts }}
+        INPUT_GIT_SSH_KEY: ${{ inputs.ssh-key }}
+        INPUT_SUBMODULE_PATHS: ${{ inputs.paths }}
+      shell: bash
+      run: |
+        install -d ~/.ssh -m 0600
+        printenv INPUT_SSH_HOST_KEYS >> ~/.ssh/known_hosts
+        eval $(ssh-agent)
+        printenv INPUT_GIT_SSH_KEY | ssh-add -
+        git submodule update --init --recursive $INPUT_SUBMODULE_PATHS
+        kill $SSH_AGENT_PID
